@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { AuthContext } from "../components/AuthContext";
+import { AuthContext } from "./AuthContext";
 import { getSharedStyles } from "./styles";
 
 export default function ForgotPassword() {
@@ -61,7 +61,7 @@ export default function ForgotPassword() {
           </Pressable>
 
           <Pressable
-            onPress={() => navigation.navigate("SignIn")}
+            onPress={() => navigation.navigate("index")}
             style={styles.backBtn}
           >
             <Text style={styles.bottomLink}>Back to Sign In</Text>

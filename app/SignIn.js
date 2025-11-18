@@ -1,7 +1,8 @@
-import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import { useContext, useState } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StatusBar,
@@ -9,25 +10,38 @@ import {
   TextInput,
   View
 } from "react-native";
-import { AuthContext } from "../components/AuthContext";
+import { AuthContext } from "./AuthContext";
 import { getSharedStyles } from "./styles";
 
 export default function SignIn() {
-  const navigation = useNavigation();
+  const router = useRouter();
   const { signIn } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
 
-  const handleLogin = () => {
-    if (!email || !pass) return alert("Preencha os campos");
-    signIn(email, pass);
-  };
+  const handleLogin = async () => {
+    if (!email || !pass) {
+      return Alert.alert("Erro", "Preencha os campos.");
+    }
 
-  const navegar = () => {
-    console.log("entrei")
-    navigation.navigate("SignUp")
-    console.log(navigation)
-  }
+    try {
+      await signIn(email, pass);
+      Alert.alert("Sucesso", "Login efetuado com sucesso!");
+      router.replace("/home");
+    } catch (error) {
+      let message = "Erro ao fazer login!";
+
+      if (error.code === "auth/user-not-found") {
+        message = "Usuário não encontrado!";
+      } else if (error.code === "auth/wrong-password") {
+        message = "Senha incorreta!";
+      } else if (error.code === "auth/invalid-email") {
+        message = "E-mail inválido!";
+      }
+
+      Alert.alert("Erro", message);
+    }
+  };
 
   const styles = getSharedStyles();
 
@@ -37,6 +51,7 @@ export default function SignIn() {
       style={styles.root}
     >
       <StatusBar barStyle="light-content" />
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.heroRow}>
           <View style={styles.heroTextBlock}>
@@ -53,7 +68,7 @@ export default function SignIn() {
           <Text style={styles.label}>Email</Text>
           <View style={styles.inputWrapper}>
             <TextInput
-              placeholder="your@email.com"
+              placeholder="email@email.com"
               placeholderTextColor="#72727D"
               style={styles.input}
               value={email}
@@ -73,7 +88,7 @@ export default function SignIn() {
             />
           </View>
 
-          <Pressable onPress={() => navigation.navigate("ForgotPassword")}>
+          <Pressable onPress={() => router.push("/forgot-password")}>
             <Text style={styles.linkText}>Forgot password?</Text>
           </Pressable>
 
@@ -88,8 +103,7 @@ export default function SignIn() {
 
           <View style={styles.bottomRow}>
             <Text style={styles.bottomText}>Don’t have an account?</Text>
-            {/* <Pressable onPress={() => navigation.navigate("SignUp")}> */}
-            <Pressable onPress={navegar}>
+            <Pressable onPress={() => router.push("/sign-up")}>
               <Text style={styles.bottomLink}>Sign up</Text>
             </Pressable>
           </View>

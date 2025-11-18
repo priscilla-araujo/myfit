@@ -1,4 +1,3 @@
-// import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useContext, useState } from "react";
 import {
@@ -9,20 +8,30 @@ import {
   TextInput,
   View
 } from "react-native";
-import { AuthContext } from "../components/AuthContext";
+import { AuthContext } from "./AuthContext";
 import { getSharedStyles } from "./styles";
 
 export default function SignUp({ navigation }) {
-  // const navigation = useNavigation();
   const { signUp } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [confirm, setConfirm] = useState("");
 
-  const handleRegister = () => {
-    if (!email || !pass || !confirm) return alert("Preencha todos os campos.");
-    if (pass !== confirm) return alert("Senhas não coincidem.");
-    signUp(email, pass);
+  const handleRegister = async () => {
+    if (!email || !pass || !confirm) {
+      return alert("Preencha todos os campos.");
+    }
+    if (pass !== confirm) {
+      return alert("Senhas não coincidem.");
+    }
+
+    try {
+      await signUp(email, pass);
+      alert("Conta criada com sucesso!");
+      navigation.navigate("index");
+    } catch (error) {
+      alert("Erro: " + error.message);
+    }
   };
 
   const styles = getSharedStyles();
@@ -40,7 +49,7 @@ export default function SignUp({ navigation }) {
           <Text style={styles.label}>Email</Text>
           <View style={styles.inputWrapper}>
             <TextInput
-              placeholder="your@email.com"
+              placeholder="email@email.com"
               placeholderTextColor="#72727D"
               style={styles.input}
               value={email}
@@ -51,7 +60,7 @@ export default function SignUp({ navigation }) {
           <Text style={styles.label}>Password</Text>
           <View style={styles.inputWrapper}>
             <TextInput
-              placeholder="Create password"
+              placeholder="Criar senha"
               placeholderTextColor="#72727D"
               secureTextEntry
               style={styles.input}
@@ -63,7 +72,7 @@ export default function SignUp({ navigation }) {
           <Text style={styles.label}>Confirm Password</Text>
           <View style={styles.inputWrapper}>
             <TextInput
-              placeholder="Repeat password"
+              placeholder="Repetir senha"
               placeholderTextColor="#72727D"
               secureTextEntry
               style={styles.input}
@@ -77,14 +86,14 @@ export default function SignUp({ navigation }) {
               colors={["#FF7A2F", "#FF4E1A"]}
               style={styles.primaryBtnGradient}
             >
-              <Text style={styles.primaryBtnLabel}>Register</Text>
+              <Text style={styles.primaryBtnLabel}>Registrar</Text>
             </LinearGradient>
           </Pressable>
 
           <View style={styles.bottomRow}>
-            <Text style={styles.bottomText}>Already have an account?</Text>
-            <Pressable onPress={() => navigation.navigate("SignIn")}>
-              <Text style={styles.bottomLink}>Sign in</Text>
+            <Text style={styles.bottomText}>Já tem conta?</Text>
+            <Pressable onPress={() => navigation.navigate("index")}>
+              <Text style={styles.bottomLink}>Entrar</Text>
             </Pressable>
           </View>
         </View>
