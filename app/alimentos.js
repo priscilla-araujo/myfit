@@ -176,7 +176,7 @@ export default function Alimentos() {
     );
 
   // ============================================
-  // 📱 UI PRINCIPAL
+  // UI PRINCIPAL
   // ============================================
   return (
     <LinearGradient
@@ -189,7 +189,7 @@ export default function Alimentos() {
         <Text style={styles.welcome}>Base de Dados de Alimentos 🍎</Text>
         <Text style={styles.subtitle}>
           Registre, consulte e acompanhe sua alimentação
-        </Text>
+          </Text>
 
         {/* BUSCA */}
         <View style={styles.card}>
@@ -206,22 +206,13 @@ export default function Alimentos() {
           </View>
 
           <Pressable style={styles.primaryBtn} onPress={buscarPorNome}>
-            <LinearGradient
-              colors={["#FF7A2F", "#FF4E1A"]}
-              style={styles.primaryBtnGradient}
-            >
+            <LinearGradient colors={["#FF7A2F", "#FF4E1A"]} style={styles.primaryBtnGradient}>
               <Text style={styles.primaryBtnLabel}>Buscar</Text>
             </LinearGradient>
           </Pressable>
 
-          <Pressable
-            style={[styles.primaryBtn, { marginTop: 10 }]}
-            onPress={ativarScanner}
-          >
-            <LinearGradient
-              colors={["#FF7A2F", "#FF4E1A"]}
-              style={styles.primaryBtnGradient}
-            >
+          <Pressable style={[styles.primaryBtn,{marginTop:10}]} onPress={ativarScanner}>
+            <LinearGradient colors={["#FF7A2F", "#FF4E1A"]} style={styles.primaryBtnGradient}>
               <Text style={styles.primaryBtnLabel}>Ler Código de Barras</Text>
             </LinearGradient>
           </Pressable>
@@ -232,102 +223,71 @@ export default function Alimentos() {
 
         {/* RESULTADO DA BUSCA */}
         {resultado && (
-          <View style={[styles.card, { marginTop: 20 }]}>
+          <View style={[styles.card,{marginTop:20}]}>
             <Text style={styles.cardTitle}>{resultado.nome}</Text>
-
-            <Text style={styles.label}>
-              Calorias: <Text style={{ color: "#FFF" }}>{resultado.calorias}</Text>
-            </Text>
-            <Text style={styles.label}>
-              Proteínas:{" "}
-              <Text style={{ color: "#FFF" }}>{resultado.proteinas}g</Text>
-            </Text>
-            <Text style={styles.label}>
-              Hidratos:{" "}
-              <Text style={{ color: "#FFF" }}>{resultado.hidratos}g</Text>
-            </Text>
-            <Text style={styles.label}>
-              Gorduras:{" "}
-              <Text style={{ color: "#FFF" }}>{resultado.gorduras}g</Text>
-            </Text>
+            <Text style={styles.label}>Calorias: <Text style={{color:"#FFF"}}>{resultado.calorias}</Text></Text>
+            <Text style={styles.label}>Proteínas: <Text style={{color:"#FFF"}}>{resultado.proteinas}g</Text></Text>
+            <Text style={styles.label}>Hidratos: <Text style={{color:"#FFF"}}>{resultado.hidratos}g</Text></Text>
+            <Text style={styles.label}>Gorduras: <Text style={{color:"#FFF"}}>{resultado.gorduras}g</Text></Text>
 
             <Pressable style={styles.primaryBtn} onPress={salvarAlimento}>
-              <LinearGradient
-                colors={["#FF7A2F", "#FF4E1A"]}
-                style={styles.primaryBtnGradient}
-              >
+              <LinearGradient colors={["#FF7A2F", "#FF4E1A"]} style={styles.primaryBtnGradient}>
                 <Text style={styles.primaryBtnLabel}>Salvar alimento</Text>
               </LinearGradient>
             </Pressable>
           </View>
         )}
 
-        {/* LISTAGEM DE ALIMENTOS */}
+        {/* LISTAGEM AGRUPADA POR DIA */}
         {alimentos.length > 0 && (
-          <View style={{ marginTop: 20 }}>
-            <Text style={[styles.cardTitle, { marginBottom: 10 }]}>
-              Consumo de Hoje 🍽
-            </Text>
+          <View style={{marginTop:20}}>
+            <Text style={[styles.cardTitle,{marginBottom:10}]}>Histórico por Dia 🍽</Text>
 
-            {alimentos.map((alimento) => (
-              <View key={alimento.id} style={[styles.card, { marginBottom: 10 }]}>
-                <Text style={styles.cardTitle}>{alimento.nome}</Text>
-
-                <Text style={styles.label}>
-                  Calorias:{" "}
-                  <Text style={{ color: "#FFF" }}>{alimento.calorias}</Text>
-                </Text>
-                <Text style={styles.label}>
-                  Proteínas:{" "}
-                  <Text style={{ color: "#FFF" }}>{alimento.proteinas}g</Text>
-                </Text>
-                <Text style={styles.label}>
-                  Hidratos:{" "}
-                  <Text style={{ color: "#FFF" }}>{alimento.hidratos}g</Text>
-                </Text>
-                <Text style={styles.label}>
-                  Gorduras:{" "}
-                  <Text style={{ color: "#FFF" }}>{alimento.gorduras}g</Text>
+            {Object.entries(
+              alimentos.reduce((acc,item)=>{
+                const dia = new Date(item.criadoEm?.seconds*1000).toLocaleDateString("pt-BR");
+                if(!acc[dia]) acc[dia]=[];
+                acc[dia].push(item);
+                return acc;
+              },{})
+            )
+            .sort((a,b)=>new Date(b[0])-new Date(a[0]))
+            .map(([dia,lista])=>(
+              <View key={dia} style={{marginBottom:20}}>
+                <Text style={{color:"#FF7A2F",fontSize:18,fontWeight:"bold",marginBottom:10}}>
+                  📅 {dia}
                 </Text>
 
-                {/* Delete */}
-                <Pressable
-                  style={[styles.primaryBtn, { marginTop: 10 }]}
-                  onPress={() => removerAlimento(alimento.id)}
-                >
-                  <LinearGradient
-                    colors={["#FF3B3B", "#C40000"]}
-                    style={styles.primaryBtnGradient}
-                  >
-                    <Text style={styles.primaryBtnLabel}>Remover</Text>
-                  </LinearGradient>
-                </Pressable>
+                {lista.map(alimento=>(
+                  <View key={alimento.id} style={[styles.card,{marginBottom:10}]}>
+                    <Text style={styles.cardTitle}>{alimento.nome}</Text>
+                    <Text style={styles.label}>Calorias: <Text style={{color:"#FFF"}}>{alimento.calorias}</Text></Text>
+                    <Text style={styles.label}>Proteínas: <Text style={{color:"#FFF"}}>{alimento.proteinas}g</Text></Text>
+                    <Text style={styles.label}>Hidratos: <Text style={{color:"#FFF"}}>{alimento.hidratos}g</Text></Text>
+                    <Text style={styles.label}>Gorduras: <Text style={{color:"#FFF"}}>{alimento.gorduras}g</Text></Text>
+
+                    <Pressable style={[styles.primaryBtn,{marginTop:10}]} onPress={()=>removerAlimento(alimento.id)}>
+                      <LinearGradient colors={["#FF3B3B","#C40000"]} style={styles.primaryBtnGradient}>
+                        <Text style={styles.primaryBtnLabel}>Remover</Text>
+                      </LinearGradient>
+                    </Pressable>
+                  </View>
+                ))}
+
               </View>
             ))}
           </View>
         )}
 
         {/* RESUMO */}
-        <View style={[styles.card, { marginTop: 20 }]}>
+        <View style={[styles.card,{marginTop:20}]}>
           <Text style={styles.cardTitle}>Resumo Diário 📊</Text>
-
-          <Text style={styles.label}>
-            Calorias totais:{" "}
-            <Text style={{ color: "#FFF" }}>{resumo.calorias}</Text>
-          </Text>
-          <Text style={styles.label}>
-            Proteínas totais:{" "}
-            <Text style={{ color: "#FFF" }}>{resumo.proteinas}g</Text>
-          </Text>
-          <Text style={styles.label}>
-            Hidratos totais:{" "}
-            <Text style={{ color: "#FFF" }}>{resumo.hidratos}g</Text>
-          </Text>
-          <Text style={styles.label}>
-            Gorduras totais:{" "}
-            <Text style={{ color: "#FFF" }}>{resumo.gorduras}g</Text>
-          </Text>
+          <Text style={styles.label}>Calorias totais: <Text style={{color:"#FFF"}}>{resumo.calorias}</Text></Text>
+          <Text style={styles.label}>Proteínas totais: <Text style={{color:"#FFF"}}>{resumo.proteinas}g</Text></Text>
+          <Text style={styles.label}>Hidratos totais: <Text style={{color:"#FFF"}}>{resumo.hidratos}g</Text></Text>
+          <Text style={styles.label}>Gorduras totais: <Text style={{color:"#FFF"}}>{resumo.gorduras}g</Text></Text>
         </View>
+
       </ScrollView>
     </LinearGradient>
   );
