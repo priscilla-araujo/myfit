@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { collection, deleteDoc, doc, onSnapshot } from "firebase/firestore";
@@ -5,8 +6,7 @@ import { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
-  Platform // << ADICIONADO
-  ,
+  Platform,
   Pressable,
   StatusBar,
   Text,
@@ -20,103 +20,65 @@ export default function Treinos() {
   const router = useRouter();
   const [treinos, setTreinos] = useState([]);
 
-  // 📌 LISTA EM TEMPO REAL
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
 
-    const ref = collection(db, "users", user.uid, "treinos");
-
-    const unsubscribe = onSnapshot(ref, (snapshot) => {
-      const lista = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setTreinos(lista);
+    return onSnapshot(collection(db,"users",user.uid,"treinos"), snapshot => {
+      setTreinos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-
-    return unsubscribe;
   }, []);
 
-  // 📌 EXCLUSÃO COMPATÍVEL COM WEB + MOBILE
   const excluirTreino = async (id) => {
     const user = auth.currentUser;
     if (!user) return alert("Usuário não autenticado!");
 
-    // WEB → usa window.confirm
     if (Platform.OS === "web") {
-      const confirmar = window.confirm("Deseja realmente excluir este treino?");
-      if (!confirmar) return;
-
-      try {
-        console.log("🔥 Excluindo no WEB:", id);
-        await deleteDoc(doc(db, "users", user.uid, "treinos", id));
-        alert("Treino excluído com sucesso!");
-      } catch (error) {
-        alert("Erro: " + error.message);
-      }
-      return;
+      if (!window.confirm("Excluir treino?")) return;
     }
 
-    // ANDROID / IOS → usa Alert-native
-    Alert.alert(
-      "Excluir treino?",
-      "Deseja realmente apagar este treino?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Excluir",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              console.log("🔥 Excluindo no MOBILE:", id);
-              await deleteDoc(doc(db, "users", user.uid, "treinos", id));
-              Alert.alert("Sucesso", "Treino excluído!");
-            } catch (error) {
-              Alert.alert("Erro", error.message);
-            }
-          }
-        }
-      ]
-    );
+    try {
+      await deleteDoc(doc(db,"users",user.uid,"treinos",id));
+      Alert.alert("Removido","Treino excluído com sucesso!");
+    } catch (error) {
+      Alert.alert("Erro",error.message);
+    }
   };
 
-  // 📌 ITEM DA LISTA
-  const renderItem = ({ item }) => (
-    <View style={[styles.card, { marginBottom: 12 }]}>
+  // ---------- CARD LISTA ----------
+  const Item = ({ item }) => (
+    <View style={{ 
+      backgroundColor:"rgba(255,255,255,0.06)",
+      borderRadius:18,
+      padding:18,
+      marginBottom:18
+    }}>
 
-      <Text style={styles.cardTitle}>{item.nome}</Text>
-      <Text style={styles.label}>Tipo: <Text style={{ color: "#FFF" }}>{item.tipo}</Text></Text>
-      <Text style={styles.label}>Duração: <Text style={{ color: "#FFF" }}>{item.duracao} min</Text></Text>
-      <Text style={styles.label}>Data: <Text style={{ color: "#FFF" }}>{item.data}</Text></Text>
+      <Text style={{ color:"#FF7A2F", fontSize:18, fontWeight:"bold" }}>
+        {item.nome}
+      </Text>
 
-      <View style={{ flexDirection: "row", marginTop: 12, gap: 10 }}>
+      <Text style={styles.label}>Tipo: <Text style={{color:"#FFF"}}>{item.tipo}</Text></Text>
+      <Text style={styles.label}>Duração: <Text style={{color:"#FFF"}}>{item.duracao} min</Text></Text>
+      <Text style={styles.label}>Data: <Text style={{color:"#FFF"}}>{item.data}</Text></Text>
 
-        {/* -------- BOTÃO EDITAR -------- */}
-        <Pressable
-          style={[styles.primaryBtn, { flex: 1, overflow: "hidden" }]}
-          onPress={() => router.push(`/editarTreino?id=${item.id}`)}
-        >
-          <LinearGradient
-            colors={["#FFA726", "#FB8C00"]}
-            style={[styles.primaryBtnGradient, { pointerEvents: "none" }]}
-          >
-            <Text style={styles.primaryBtnLabel}>Editar</Text>
-          </LinearGradient>
-        </Pressable>
+      <View style={{ flexDirection:"row", marginTop:14, gap:12 }}>
 
-        {/* -------- BOTÃO EXCLUIR -------- */}
-        <Pressable
-          style={[styles.primaryBtn, { flex: 1, overflow: "hidden" }]}
-          onPress={() => excluirTreino(item.id)}
-        >
-          <LinearGradient
-            colors={["#E53935", "#B71C1C"]}
-            style={[styles.primaryBtnGradient, { pointerEvents: "none" }]}
-          >
-            <Text style={styles.primaryBtnLabel}>Excluir</Text>
-          </LinearGradient>
-        </Pressable>
+        {/* EDITAR */}
+        <Btn 
+          texto="Editar" 
+          icon="create-outline" 
+          onPress={()=>router.push(`/editarTreino?id=${item.id}`)} 
+          colors={["#FFA726","#FB8C00"]} 
+        />
+
+        {/* EXCLUIR */}
+        <Btn 
+          texto="Excluir" 
+          icon="trash-outline"
+          onPress={()=>excluirTreino(item.id)}
+          colors={["#E53935","#B71C1C"]}
+        />
 
       </View>
     </View>
@@ -124,38 +86,42 @@ export default function Treinos() {
 
   return (
     <LinearGradient
-      colors={["#050509", "#121219", "#181924"]}
+      colors={["#050509","#121219","#181924"]}
       style={styles.root}
     >
       <StatusBar barStyle="light-content" />
 
-      <View style={{ padding: 20, flex: 1 }}>
-        
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <Text style={styles.welcome}>Meus Treinos</Text>
+      <View style={{ padding:22, flex:1 }}>
 
+        {/* HEADER */}
+        <View style={{ flexDirection:"row", justifyContent:"space-between", marginBottom:28 }}>
+          <Text style={{ color:"#FFF", fontSize:24, fontWeight:"bold" }}>
+            Meus Treinos
+          </Text>
+
+          {/* ADICIONAR TREINO */}
           <Pressable
-            onPress={() => router.push("/novoTreino")}
+            onPress={()=>router.push("/novoTreino")}
             style={{
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-              backgroundColor: "#FF7A2F",
-              alignItems: "center",
-              justifyContent: "center",
+              backgroundColor:"#FF7A2F",
+              width:44,
+              height:44,
+              borderRadius:14,
+              alignItems:"center",
+              justifyContent:"center"
             }}
           >
-            <Text style={{ color: "#FFF", fontSize: 28, fontWeight: "bold" }}>+</Text>
+            <Ionicons name="add" size={26} color="#FFF"/>
           </Pressable>
         </View>
 
         <FlatList
           data={treinos}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 80 }}
+          keyExtractor={i=>i.id}
+          renderItem={Item}
+          contentContainerStyle={{paddingBottom:120}}
           ListEmptyComponent={() => (
-            <Text style={{ color: "#8F8FA0", marginTop: 20 }}>
+            <Text style={{ color:"#888", textAlign:"center", marginTop:30 }}>
               Nenhum treino registrado ainda.
             </Text>
           )}
@@ -165,3 +131,24 @@ export default function Treinos() {
     </LinearGradient>
   );
 }
+
+
+// ---------- BOTÃO PADRÃO ----------
+const Btn = ({texto,onPress,colors,icon}) => (
+  <Pressable style={{flex:1}} onPress={onPress}>
+    <LinearGradient 
+      colors={colors} 
+      style={{
+        paddingVertical:12,
+        borderRadius:12,
+        flexDirection:"row",
+        justifyContent:"center",
+        alignItems:"center",
+        gap:6
+      }}
+    >
+      <Ionicons name={icon} size={18} color="#FFF"/>
+      <Text style={{ color:"#FFF", fontWeight:"bold" }}>{texto}</Text>
+    </LinearGradient>
+  </Pressable>
+);

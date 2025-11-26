@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   Text,
   TextInput,
-  View
+  View,
 } from "react-native";
 import { auth, db } from "./firebase";
 import { getSharedStyles } from "./styles";
@@ -31,7 +31,7 @@ export default function Perfil() {
   const [objetivo, setObjetivo] = useState("");
 
   // =====================================================================
-  // 🔥 Carrega perfil no Firestore
+  // 🔥 Carregar dados do Firestore
   // =====================================================================
   const carregarPerfil = async () => {
     if (!user) return;
@@ -41,189 +41,265 @@ export default function Perfil() {
       const snap = await getDoc(ref);
 
       if (snap.exists()) {
-        const p = snap.data();
-        setNome(p.nome ?? "");
-        setIdade(p.idade ?? "");
-        setAltura(p.altura ?? "");
-        setPeso(p.peso ?? "");
-        setObjetivo(p.objetivo ?? "");
-      } else {
-        console.log("⚠ Nenhum perfil encontrado—novo usuário.");
+        const data = snap.data();
+        setNome(data.nome || "");
+        setIdade(data.idade || "");
+        setAltura(data.altura || "");
+        setPeso(data.peso || "");
+        setObjetivo(data.objetivo || "");
       }
-    } catch (e) {
-      alert("Erro ao carregar perfil!");
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível carregar o perfil.");
     }
 
     setLoading(false);
   };
 
-  useEffect(() => { carregarPerfil(); }, []);
+  useEffect(() => {
+    carregarPerfil();
+  }, []);
 
   // =====================================================================
-  // 🔥 Salvar Perfil (Web + Mobile)
+  // 🔥 SALVAR PERFIL
   // =====================================================================
   const salvarPerfil = async () => {
-    if (!nome || !idade || !altura || !peso || !objetivo)
-      return alert("Preencha todos os campos!");
+    if (!nome || !idade || !altura || !peso || !objetivo) {
+      return Alert.alert("Atenção", "Preencha todos os campos!");
+    }
 
     try {
       setSaving(true);
 
-      await setDoc(
-        doc(db, "users", user.uid, "perfil", "informacoes"),
-        { nome, idade, altura, peso, objetivo, atualizadoEm: new Date() },
-        { merge: true }
-      );
+      const ref = doc(db, "users", user.uid, "perfil", "informacoes");
 
-      // WEB
-      if (Platform.OS === "web") {
-        alert("Perfil atualizado com sucesso! 🎉");
-        setEditMode(false);
-        return;
-      }
+      await setDoc(ref, {
+        nome,
+        idade,
+        altura,
+        peso,
+        objetivo,
+        atualizadoEm: new Date(),
+      });
 
-      // MOBILE
-      Alert.alert("Sucesso!", "Perfil atualizado com sucesso!", [
-        { text: "OK", onPress: () => setEditMode(false) }
-      ]);
+      await carregarPerfil();
+      setEditMode(false);
 
-    } catch {
-      alert("Erro ao salvar perfil!");
+      // 🔥 Mensagem de sucesso EXIBIDA APÓS SALVAR
+      Alert.alert("Sucesso!", "As informações do perfil foram atualizadas corretamente. 🎉");
+      
+    } catch (error) {
+      Alert.alert("Erro", "Falha ao salvar o perfil.");
     }
 
     setSaving(false);
   };
 
   // =====================================================================
-  // ❌ Excluir Perfil com suporte Web + Mobile
+  // ❌ EXCLUIR PERFIL
   // =====================================================================
-  const excluirPerfil = async () => {
-  try {
-    await deleteDoc(doc(db, "users", user.uid, "perfil", "informacoes"));
+  const excluirPerfil = () => {
+    Alert.alert(
+      "Remover Perfil",
+      "Tem certeza que deseja remover todas as informações do perfil?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sim",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, "users", user.uid, "perfil", "informacoes"));
 
-    // 🔥 limpa os estados imediatamente na UI
-    setNome("");
-    setIdade("");
-    setAltura("");
-    setPeso("");
-    setObjetivo("");
+              setNome("");
+              setIdade("");
+              setAltura("");
+              setPeso("");
+              setObjetivo("");
 
-    // 🔥 recarrega a tela sem dados
-    carregarPerfil();        // Atualiza a interface em seguida
-    setEditMode(false);      // volta para tela principal
-
-    // 🔥 mensagem para Web + Mobile
-    if (Platform.OS === "web") {
-      alert("Perfil excluído com sucesso!");
-    } else {
-      Alert.alert("Perfil excluído", "Todos os dados foram removidos.");
-    }
-
-  } catch (error) {
-    alert("Erro ao excluir o perfil.");
-  }
-};
-
-
-  // =====================================================================
-  // ⏳ Tela de Carregamento
-  // =====================================================================
-  if (loading) return (
-    <View style={{flex:1,backgroundColor:"#050509",justifyContent:"center",alignItems:"center"}}>
-      <ActivityIndicator size="large" color="#FF7A2F"/>
-      <Text style={{color:"#FFF",marginTop:10}}>Carregando perfil...</Text>
-    </View>
-  );
+              Alert.alert("Perfil apagado", "As informações foram excluídas.");
+            } catch (error) {
+              Alert.alert("Erro", "Não foi possível excluir.");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // =====================================================================
-  // 🔥 VISUALIZAÇÃO DO PERFIL
+  // 🔄 LOADING
   // =====================================================================
-  if (!editMode)
+  if (loading) {
     return (
-      <LinearGradient colors={["#050509","#121219","#181924"]} style={styles.root}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#050509",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <ActivityIndicator size="large" color="#FF7A2F" />
+        <Text style={{ color: "#FFF", marginTop: 12 }}>Carregando perfil...</Text>
+      </View>
+    );
+  }
+
+  // =====================================================================
+  // 🔥 MODO DE VISUALIZAÇÃO
+  // =====================================================================
+  if (!editMode) {
+    return (
+      <LinearGradient colors={["#050509", "#121219", "#181924"]} style={styles.root}>
+        <StatusBar barStyle="light-content" />
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Meu Perfil</Text>
 
-            <Item label="Nome" valor={nome}/>
-            <Item label="Idade" valor={idade}/>
-            <Item label="Altura" valor={`${altura} cm`}/>
-            <Item label="Peso" valor={`${peso} kg`}/>
-            <Item label="Objetivo" valor={objetivo}/>
+            <Text style={styles.label}>Nome:</Text>
+            <Text style={{ color: "#FFF", fontSize: 16 }}>{nome || "-"}</Text>
+
+            <Text style={styles.label}>Idade:</Text>
+            <Text style={{ color: "#FFF", fontSize: 16 }}>{idade || "-"}</Text>
+
+            <Text style={styles.label}>Altura:</Text>
+            <Text style={{ color: "#FFF", fontSize: 16 }}>{altura || "-"} cm</Text>
+
+            <Text style={styles.label}>Peso:</Text>
+            <Text style={{ color: "#FFF", fontSize: 16 }}>{peso || "-"} kg</Text>
+
+            <Text style={styles.label}>Objetivo:</Text>
+            <Text style={{ color: "#FFF", fontSize: 16 }}>{objetivo || "-"}</Text>
 
             {/* Botão Editar */}
-            <Btn texto="Editar Perfil" onPress={()=>setEditMode(true)}/>
+            <Pressable
+              style={[styles.primaryBtn, { marginTop: 20 }]}
+              onPress={() => setEditMode(true)}
+            >
+              <LinearGradient
+                colors={["#FF7A2F", "#FF4E1A"]}
+                style={styles.primaryBtnGradient}
+              >
+                <Text style={styles.primaryBtnLabel}>Editar Perfil</Text>
+              </LinearGradient>
+            </Pressable>
 
-            {/* Botão Excluir */}
-            <Btn texto="Excluir Perfil" vermelho onPress={excluirPerfil}/>
+            {/* Excluir Perfil */}
+            <Pressable
+              style={[styles.primaryBtn, { marginTop: 12 }]}
+              onPress={excluirPerfil}
+            >
+              <LinearGradient
+                colors={["#cc0000", "#990000"]}
+                style={styles.primaryBtnGradient}
+              >
+                <Text style={styles.primaryBtnLabel}>Excluir Perfil</Text>
+              </LinearGradient>
+            </Pressable>
           </View>
         </ScrollView>
       </LinearGradient>
     );
+  }
 
   // =====================================================================
   // ✍️ MODO DE EDIÇÃO
   // =====================================================================
   return (
-    <LinearGradient colors={["#050509","#121219","#181924"]} style={styles.root}>
+    <LinearGradient colors={["#050509", "#121219", "#181924"]} style={styles.root}>
+      <StatusBar barStyle="light-content" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Editar Perfil</Text>
 
-          <Campo label="Nome" valor={nome} set={setNome}/>
-          <Campo label="Idade" valor={idade} set={setIdade} num/>
-          <Campo label="Altura (cm)" valor={altura} set={setAltura} num/>
-          <Campo label="Peso (kg)" valor={peso} set={setPeso} num/>
-          <Campo label="Objetivo" valor={objetivo} set={setObjetivo}/>
+          {/* Campos */}
+          <Text style={styles.label}>Nome</Text>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Digite seu nome"
+              placeholderTextColor="#72727D"
+              value={nome}
+              onChangeText={setNome}
+            />
+          </View>
 
-          <Btn texto={saving?"Salvando...":"Salvar Alterações"} onPress={salvarPerfil}/>
-          <Btn texto="Cancelar" cinza onPress={()=>setEditMode(false)}/>
+          <Text style={styles.label}>Idade</Text>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              placeholder="28"
+              placeholderTextColor="#72727D"
+              value={idade}
+              onChangeText={setIdade}
+            />
+          </View>
+
+          <Text style={styles.label}>Altura (cm)</Text>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              placeholder="170"
+              placeholderTextColor="#72727D"
+              value={altura}
+              onChangeText={setAltura}
+            />
+          </View>
+
+          <Text style={styles.label}>Peso (kg)</Text>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              placeholder="65"
+              placeholderTextColor="#72727D"
+              value={peso}
+              onChangeText={setPeso}
+            />
+          </View>
+
+          <Text style={styles.label}>Objetivo</Text>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Ganhar massa, perder peso..."
+              placeholderTextColor="#72727D"
+              value={objetivo}
+              onChangeText={setObjetivo}
+            />
+          </View>
+
+          {/* Botão Salvar */}
+          <Pressable
+            style={[styles.primaryBtn, { marginTop: 20 }]}
+            onPress={salvarPerfil}
+          >
+            <LinearGradient
+              colors={["#FF7A2F", "#FF4E1A"]}
+              style={styles.primaryBtnGradient}
+            >
+              <Text style={styles.primaryBtnLabel}>
+                {saving ? "Salvando..." : "Salvar Alterações"}
+              </Text>
+            </LinearGradient>
+          </Pressable>
+
+          {/* Cancelar */}
+          <Pressable
+            style={[styles.primaryBtn, { marginTop: 12 }]}
+            onPress={() => setEditMode(false)}
+          >
+            <LinearGradient
+              colors={["#555", "#333"]}
+              style={styles.primaryBtnGradient}
+            >
+              <Text style={styles.primaryBtnLabel}>Cancelar</Text>
+            </LinearGradient>
+          </Pressable>
         </View>
       </ScrollView>
     </LinearGradient>
-  );
-}
-
-//
-// COMPONENTES UTILIZADOS
-//
-function Item({label,valor}) {
-  return (
-    <>
-      <Text style={{color:"#FF7A2F",marginTop:10}}>{label}</Text>
-      <Text style={{color:"#FFF",marginBottom:8,fontSize:16}}>{valor || "-"}</Text>
-    </>
-  );
-}
-
-function Campo({label,valor,set,num}) {
-  return (
-    <>
-      <Text style={{color:"#FF7A2F",marginTop:10}}>{label}</Text>
-      <TextInput
-        value={valor}
-        onChangeText={set}
-        keyboardType={num?"numeric":"default"}
-        placeholderTextColor="#777"
-        style={{backgroundColor:"#0E0E14",borderRadius:10,color:"#fff",padding:12,marginBottom:10}}
-      />
-    </>
-  );
-}
-
-function Btn({texto,onPress,vermelho,cinza}) {
-  return (
-    <Pressable onPress={onPress} style={{overflow:"hidden",marginTop:15}}>
-      <LinearGradient
-        colors={
-          vermelho ? ["#B00020","#790000"] :
-          cinza ? ["#666","#333"] :
-          ["#FF7A2F","#FF4E1A"]
-        }
-        style={{padding:14,borderRadius:12,alignItems:"center",pointerEvents:"none"}}
-      >
-        <Text style={{color:"#FFF",fontWeight:"bold",fontSize:16}}>{texto}</Text>
-      </LinearGradient>
-    </Pressable>
   );
 }

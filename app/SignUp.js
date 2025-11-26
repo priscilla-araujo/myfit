@@ -1,9 +1,9 @@
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useContext, useState } from "react";
 import {
   Pressable,
   ScrollView,
-  StatusBar,
   Text,
   TextInput,
   View
@@ -18,16 +18,10 @@ export default function SignUp({ navigation }) {
   const [confirm, setConfirm] = useState("");
 
   const handleRegister = async () => {
-    if (!email || !pass || !confirm) {
-      return alert("Preencha todos os campos.");
-    }
-    if (pass !== confirm) {
-      return alert("Senhas não coincidem.");
-    }
-
+    if (!email || !pass || !confirm) return alert("Preencha todos os campos.");
+    if (pass !== confirm) return alert("As senhas não coincidem.");
     try {
       await signUp(email, pass);
-      alert("Conta criada com sucesso!");
       navigation.navigate("index");
     } catch (error) {
       alert("Erro: " + error.message);
@@ -37,67 +31,132 @@ export default function SignUp({ navigation }) {
   const styles = getSharedStyles();
 
   return (
-    <LinearGradient
-      colors={["#050509", "#121219", "#181924"]}
-      style={styles.root}
-    >
-      <StatusBar barStyle="light-content" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Sign Up</Text>
+    <View style={{flex:1}}>  {/* BASE, AGORA A IMAGEM PREENDE TUDO */}
 
-          <Text style={styles.label}>Email</Text>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              placeholder="email@email.com"
-              placeholderTextColor="#72727D"
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-            />
+      {/* 🔥 CAMADA DE ESCURECIMENTO E CONTEÚDO */}
+      <LinearGradient
+        colors={["rgba(0,0,0,0.85)", "rgba(0,0,0,0.95)"]}
+        style={{flex:1,paddingTop:90,paddingHorizontal:22}}
+      >
+        <ScrollView contentContainerStyle={{paddingBottom:80}}>
+          
+          {/* LOGO */}
+          <View style={{alignItems:"center",marginBottom:45}}>
+            <Text style={{color:"#fff",fontSize:48,fontWeight:"bold"}}>
+              my<Text style={{color:"#FF7A2F"}}>Fit</Text>
+            </Text>
           </View>
 
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              placeholder="Criar senha"
-              placeholderTextColor="#72727D"
-              secureTextEntry
-              style={styles.input}
-              value={pass}
-              onChangeText={setPass}
-            />
-          </View>
+          {/* FORM BOX */}
+          <View style={{
+            backgroundColor:"rgba(255,255,255,0.08)",
+            padding:28,
+            borderRadius:18
+          }}>
 
-          <Text style={styles.label}>Confirm Password</Text>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              placeholder="Repetir senha"
-              placeholderTextColor="#72727D"
-              secureTextEntry
-              style={styles.input}
-              value={confirm}
-              onChangeText={setConfirm}
-            />
-          </View>
+            <Text style={{
+              textAlign:"center",
+              fontSize:22,
+              fontWeight:"bold",
+              color:"#fff",
+              marginBottom:22
+            }}>
+              Criar Conta
+            </Text>
 
-          <Pressable style={styles.primaryBtn} onPress={handleRegister}>
-            <LinearGradient
-              colors={["#FF7A2F", "#FF4E1A"]}
-              style={styles.primaryBtnGradient}
-            >
-              <Text style={styles.primaryBtnLabel}>Registrar</Text>
-            </LinearGradient>
-          </Pressable>
+            {/* EMAIL */}
+            <Field label="Email" icon="mail-outline">
+              <TextInput
+                style={inputField}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="email@example.com"
+                placeholderTextColor="#AAA"
+              />
+            </Field>
 
-          <View style={styles.bottomRow}>
-            <Text style={styles.bottomText}>Já tem conta?</Text>
-            <Pressable onPress={() => navigation.navigate("index")}>
-              <Text style={styles.bottomLink}>Entrar</Text>
+            {/* SENHA */}
+            <Field label="Senha" icon="lock-closed-outline">
+              <TextInput
+                style={inputField}
+                secureTextEntry
+                value={pass}
+                onChangeText={setPass}
+                placeholder="********"
+                placeholderTextColor="#AAA"
+              />
+            </Field>
+
+            {/* CONFIRMAÇÃO */}
+            <Field label="Confirmar Senha" icon="checkmark-circle-outline">
+              <TextInput
+                style={inputField}
+                secureTextEntry
+                value={confirm}
+                onChangeText={setConfirm}
+                placeholder="Repetir senha..."
+                placeholderTextColor="#AAA"
+              />
+            </Field>
+
+            {/* BOTÃO */}
+            <Pressable onPress={handleRegister} style={{marginTop:10}}>
+              <LinearGradient
+                colors={["#FF7A2F","#FF4E1A"]}
+                style={{
+                  paddingVertical:14,
+                  borderRadius:10,
+                  alignItems:"center"
+                }}
+              >
+                <Text style={{color:"#fff",fontSize:17,fontWeight:"bold"}}>
+                  Registrar
+                </Text>
+              </LinearGradient>
             </Pressable>
+
+            <View style={{flexDirection:"row",justifyContent:"center",marginTop:16}}>
+              <Text style={{color:"#ccc"}}>Já tem conta? </Text>
+              <Pressable onPress={()=>navigation.navigate("index")}>
+                <Text style={{color:"#FF7A2F",fontWeight:"bold"}}>Entrar</Text>
+              </Pressable>
+            </View>
+
           </View>
-        </View>
-      </ScrollView>
-    </LinearGradient>
+        </ScrollView>
+      </LinearGradient>
+    </View>
   );
 }
+
+
+// 🔥 COMPONENTE PARA CAMPO COM ÍCONE
+function Field({label,icon,children}) {
+  return (
+    <View style={{marginBottom:18}}>
+      <Text style={{color:"#fff",marginBottom:6}}>{label}</Text>
+      <View style={inputBox}>
+        <Ionicons name={icon} size={20} color="#FF7A2F" />
+        {children}
+      </View>
+    </View>
+  );
+}
+
+const inputBox = {
+  flexDirection:"row",
+  alignItems:"center",
+  paddingHorizontal:10,
+  paddingVertical:8,
+  borderRadius:10,
+  borderWidth:1,
+  borderColor:"#FF7A2F",
+  backgroundColor:"rgba(0,0,0,0.65)"
+};
+
+const inputField = {
+  flex:1,
+  marginLeft:8,
+  color:"#fff",
+  fontSize:15
+};

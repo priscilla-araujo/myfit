@@ -43,6 +43,18 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7550f26a-6776-4979-ad56-76c419919b8b"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7550f26a-6776-4979-ad56-76c419919b8b"
     }
   }
 }
