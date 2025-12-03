@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { collection, deleteDoc, doc, onSnapshot } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -14,12 +14,18 @@ import {
 } from "react-native";
 import { auth, db } from "./firebase";
 import { getSharedStyles } from "./styles";
+import { ThemeContext } from "./ThemeContext";
 
 export default function Treinos() {
-  const styles = getSharedStyles();
+
+  const { theme } = useContext(ThemeContext);
+  const styles = getSharedStyles(theme);
+  const dark = theme === "dark";
   const router = useRouter();
+
   const [treinos, setTreinos] = useState([]);
 
+  // Listener realtime
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
@@ -33,9 +39,7 @@ export default function Treinos() {
     const user = auth.currentUser;
     if (!user) return alert("Usuário não autenticado!");
 
-    if (Platform.OS === "web") {
-      if (!window.confirm("Excluir treino?")) return;
-    }
+    if (Platform.OS === "web" && !window.confirm("Excluir treino?")) return;
 
     try {
       await deleteDoc(doc(db,"users",user.uid,"treinos",id));
@@ -45,34 +49,41 @@ export default function Treinos() {
     }
   };
 
-  // ---------- CARD LISTA ----------
-  const Item = ({ item }) => (
-    <View style={{ 
-      backgroundColor:"rgba(255,255,255,0.06)",
-      borderRadius:18,
-      padding:18,
-      marginBottom:18
-    }}>
+  const gradientColors = dark
+    ? ["#050509","#121219","#181924"]
+    : ["#FFFFFF","#FFFFFF","#FFFFFF"];
 
-      <Text style={{ color:"#FF7A2F", fontSize:18, fontWeight:"bold" }}>
-        {item.nome}
+  const Card = ({ item }) => (
+    <View
+      style={[
+        styles.card,
+        {
+          padding: 20,
+          marginBottom: 20,
+          backgroundColor: dark ? "rgba(255,255,255,0.06)" : "#FFF",
+          borderWidth: 1.2,
+          borderColor: dark ? "rgba(255,255,255,0.08)" : "#E2E2E2"
+        }
+      ]}
+    >
+      <Text style={[styles.cardTitle, { color: "#FF7A2F", marginBottom: 6 }]}>
+        <Ionicons name="barbell-outline" size={20} color="#FF7A2F" /> {item.nome}
       </Text>
 
-      <Text style={styles.label}>Tipo: <Text style={{color:"#FFF"}}>{item.tipo}</Text></Text>
-      <Text style={styles.label}>Duração: <Text style={{color:"#FFF"}}>{item.duracao} min</Text></Text>
-      <Text style={styles.label}>Data: <Text style={{color:"#FFF"}}>{item.data}</Text></Text>
+      <Text style={styles.subtitle}>Tipo: <Text style={{color: styles.welcome.color}}>{item.tipo}</Text></Text>
+      <Text style={styles.subtitle}>Duração: <Text style={{color: styles.welcome.color}}>{item.duracao} min</Text></Text>
+      <Text style={styles.subtitle}>Data: <Text style={{color: styles.welcome.color}}>{item.data}</Text></Text>
 
-      <View style={{ flexDirection:"row", marginTop:14, gap:12 }}>
-
-        {/* EDITAR */}
+      {/* BOTÕES */}
+      <View style={{ flexDirection:"row", gap: 12, marginTop: 16 }}>
+        
         <Btn 
           texto="Editar" 
-          icon="create-outline" 
-          onPress={()=>router.push(`/editarTreino?id=${item.id}`)} 
-          colors={["#FFA726","#FB8C00"]} 
+          icon="create-outline"
+          onPress={()=>router.push(`/editarTreino?id=${item.id}`)}
+          colors={["#FFA726","#FB8C00"]}
         />
 
-        {/* EXCLUIR */}
         <Btn 
           texto="Excluir" 
           icon="trash-outline"
@@ -85,43 +96,42 @@ export default function Treinos() {
   );
 
   return (
-    <LinearGradient
-      colors={["#050509","#121219","#181924"]}
-      style={styles.root}
-    >
-      <StatusBar barStyle="light-content" />
+    <LinearGradient colors={gradientColors} style={styles.root}>
+      <StatusBar barStyle={dark ? "light-content" : "dark-content"} />
 
-      <View style={{ padding:22, flex:1 }}>
+      <View style={{ padding: 22, flex: 1 }}>
 
         {/* HEADER */}
-        <View style={{ flexDirection:"row", justifyContent:"space-between", marginBottom:28 }}>
-          <Text style={{ color:"#FFF", fontSize:24, fontWeight:"bold" }}>
+        <View style={{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom: 30 }}>
+          
+          <Text style={[styles.welcome, { fontSize: 26 }]}>
             Meus Treinos
           </Text>
 
-          {/* ADICIONAR TREINO */}
           <Pressable
             onPress={()=>router.push("/novoTreino")}
             style={{
               backgroundColor:"#FF7A2F",
-              width:44,
-              height:44,
-              borderRadius:14,
+              width:46,
+              height:46,
+              borderRadius:16,
               alignItems:"center",
-              justifyContent:"center"
+              justifyContent:"center",
+              elevation:4
             }}
           >
             <Ionicons name="add" size={26} color="#FFF"/>
           </Pressable>
         </View>
 
+        {/* LISTA */}
         <FlatList
           data={treinos}
           keyExtractor={i=>i.id}
-          renderItem={Item}
-          contentContainerStyle={{paddingBottom:120}}
+          renderItem={Card}
+          contentContainerStyle={{ paddingBottom: 140 }}
           ListEmptyComponent={() => (
-            <Text style={{ color:"#888", textAlign:"center", marginTop:30 }}>
+            <Text style={{ color: dark ? "#AAA" : "#666", textAlign:"center", marginTop: 40 }}>
               Nenhum treino registrado ainda.
             </Text>
           )}
@@ -133,22 +143,23 @@ export default function Treinos() {
 }
 
 
-// ---------- BOTÃO PADRÃO ----------
-const Btn = ({texto,onPress,colors,icon}) => (
-  <Pressable style={{flex:1}} onPress={onPress}>
-    <LinearGradient 
-      colors={colors} 
+// ---------- BOTÃO COESO AO TEMA ----------
+const Btn = ({ texto, onPress, colors, icon }) => (
+  <Pressable style={{ flex: 1 }} onPress={onPress}>
+    <LinearGradient
+      colors={colors}
       style={{
-        paddingVertical:12,
-        borderRadius:12,
-        flexDirection:"row",
-        justifyContent:"center",
-        alignItems:"center",
-        gap:6
+        paddingVertical: 12,
+        borderRadius: 14,
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 6,
+        elevation: 4
       }}
     >
       <Ionicons name={icon} size={18} color="#FFF"/>
-      <Text style={{ color:"#FFF", fontWeight:"bold" }}>{texto}</Text>
+      <Text style={{ color: "#FFF", fontWeight: "bold" }}>{texto}</Text>
     </LinearGradient>
   </Pressable>
 );

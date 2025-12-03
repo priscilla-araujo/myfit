@@ -6,9 +6,13 @@ import { BarChart, LineChart } from "react-native-chart-kit";
 import { AuthContext } from "./AuthContext";
 import { db } from "./firebase";
 import { getSharedStyles } from "./styles";
+import { ThemeContext } from "./ThemeContext"; // 💥 NOVO: Importar ThemeContext
 
 export default function Estatisticas() {
-  const styles = getSharedStyles();
+  const { theme } = useContext(ThemeContext); // 💥 CHAVE: Obter tema
+  const dark = theme === "dark";
+
+  const styles = getSharedStyles(theme); // 💥 CHAVE: Passar tema para estilos
   const screenWidth = Dimensions.get("window").width - 40;
 
   const { user } = useContext(AuthContext);
@@ -22,13 +26,16 @@ export default function Estatisticas() {
 
     const ref = collection(db, "users", user.uid, "treinos");
 
+    // 💥 CORREÇÃO: uid como dependência
     return onSnapshot(ref, (snapshot) => {
       // 7 dias → Dom a Sáb
       const contagem = [0, 0, 0, 0, 0, 0, 0];
 
       snapshot.forEach((doc) => {
         const t = doc.data();
-        const d = new Date(t.criadoEm?.seconds * 1000);
+        // Garante que a data é tratada corretamente
+        const timestamp = t.criadoEm?.seconds || new Date().getTime() / 1000;
+        const d = new Date(timestamp * 1000); 
         const dia = d.getDay(); // 0–6
 
         contagem[dia] += 1;
@@ -36,107 +43,121 @@ export default function Estatisticas() {
 
       setTreinosSemana(contagem);
     });
-  }, [user]);
+  }, [user]); // 💥 CORREÇÃO: user como dependência
 
-  // 🟧 CARREGAR CALORIAS (alimentos)
+  // 🍎 CARREGAR CALORIAS (por alimento/dia)
   useEffect(() => {
     if (!user) return;
 
     const ref = collection(db, "users", user.uid, "alimentos");
 
+    // 💥 CORREÇÃO: uid como dependência
     return onSnapshot(ref, (snapshot) => {
-      const lista = [];
-
+      const totais = [];
       snapshot.forEach((doc) => {
-        const a = doc.data();
-        lista.push(a.calorias || 0);
+        const c = doc.data();
+        totais.push(c.calorias || 0);
       });
-
-      setCaloriasDia(lista);
+      setCaloriasDia(totais);
     });
-  }, [user]);
+  }, [user]); // 💥 CORREÇÃO: user como dependência
+  
+  // Cores do Gradiente
+  const gradientColors = dark 
+    ? ["#050509","#121219","#181924"] 
+    : ["#FFFFFF","#FFFFFF","#FFFFFF"];
+
+  // Configuração comum para gráficos (adaptada ao tema)
+  const chartConfig = {
+    backgroundGradientFrom: styles.card.backgroundColor, // Fundo do card
+    backgroundGradientTo: styles.card.backgroundColor,
+    decimalPlaces: 0,
+    color: (opacity = 1) => dark ? `rgba(255,255,255,${opacity})` : `rgba(0,0,0,${opacity})`, // Cor das linhas e texto
+    labelColor: (opacity = 1) => dark ? `rgba(255,255,255,${opacity})` : `rgba(0,0,0,${opacity})`,
+    style: { borderRadius: 16 },
+    propsForDots: { r: "5", strokeWidth: "2", stroke: "#FF7A2F" },
+  };
+
 
   return (
-  <LinearGradient
-    colors={["#050509", "#121219", "#181924"]}
-    style={{ flex: 1, paddingTop: 35 }} // aumenta respiro na parte superior
-  >
-    <StatusBar barStyle="light-content" />
+    <LinearGradient
+      colors={gradientColors}
+      style={styles.root}
+    >
+      <StatusBar barStyle={dark ? "light-content" : "dark-content"} />
 
-    <ScrollView contentContainerStyle={{ paddingBottom: 50, paddingHorizontal: 20 }}>
-      
-      <Text style={[styles.welcome, { marginTop: 10, fontSize: 26 }]}>
-        Estatísticas 📊
-      </Text>
-      <Text style={[styles.subtitle, { marginBottom: 20 }]}>
-        Acompanhe sua evolução nos treinos e alimentação
-      </Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 50, paddingHorizontal: 20 }}>
+        
+        <Text style={[styles.welcome, { marginTop: 10, fontSize: 26 }]}>
+          Estatísticas 📊
+        </Text>
+        <Text style={[styles.subtitle, { marginBottom: 20 }]}>
+          Acompanhe sua evolução nos treinos e alimentação
+        </Text>
 
-      {/* ===== Treinos Semana ===== */}
-      <View style={[styles.card, { marginTop: 20, paddingBottom: 20 }]}>
-        <Text style={styles.cardTitle}>Treinos na Semana</Text>
+        {/* ===== Treinos na Semana ===== */}
+        <View style={[styles.card, { marginTop: 20, paddingBottom: 20 }]}>
+          <Text style={styles.cardTitle}>Treinos na Semana</Text>
+          
+          {/* Se todos os valores forem zero, mostra a mensagem */}
+          {treinosSemana.every(v => v === 0) ? (
+            <Text style={[styles.label, { marginTop: 12, textAlign: 'center' }]}>
+              Nenhum treino registrado nesta semana.
+            </Text>
+          ) : (
+            <LineChart
+              data={{
+                labels: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
+                datasets: [{ data: treinosSemana }],
+              }}
+              width={screenWidth}
+              height={240}
+              chartConfig={{
+                ...chartConfig,
+                color: (o=1)=>`rgba(255,122,47,${o})`, // Laranja
+              }}
+              bezier
+              style={{
+                borderRadius:16,
+                marginTop:15,
+                alignSelf:"center"
+              }}
+            />
+          )}
+        </View>
 
-        <LineChart
-          data={{
-            labels: ["D","S","T","Q","Q","S","S"],
-            datasets: [{ data: treinosSemana }],
-          }}
-          width={screenWidth}            // Agora o gráfico encaixa
-          height={240}                    // Maior e mais confortável
-          yAxisInterval={1}
-          fromZero={true}                 // Começa no zero — visual melhor
-          chartConfig={{
-            backgroundColor:"#181924",
-            backgroundGradientFrom:"#181924",
-            backgroundGradientTo:"#181924",
-            decimalPlaces:0,
-            color:(o=1)=>`rgba(255,122,47,${o})`,
-            labelColor:(o=1)=>`rgba(255,255,255,${o})`,
-            propsForDots:{ r:"5" }        // Pontos mais visíveis
-          }}
-          bezier
-          style={{
-            borderRadius:16,
-            marginTop:15,
-            alignSelf:"center"           // CENTRALIZA GERAL NO DISPLAY
-          }}
-        />
-      </View>
+        {/* ===== Calorias ===== */}
+        <View style={[styles.card, { marginTop: 25, paddingBottom: 20 }]}>
+          <Text style={styles.cardTitle}>Calorias Consumidas (por item)</Text>
 
-      {/* ===== Calorias ===== */}
-      <View style={[styles.card, { marginTop: 25, paddingBottom: 20 }]}>
-        <Text style={styles.cardTitle}>Calorias Consumidas</Text>
+          {caloriasDia.length === 0 ? (
+            <Text style={[styles.label, { marginTop: 12, textAlign: 'center' }]}>
+              Nenhum alimento registrado.
+            </Text>
+          ) : (
+            <BarChart
+              data={{
+                labels: caloriasDia.map((_, i) => `${i + 1}`),
+                datasets: [{ data: caloriasDia }],
+              }}
+              width={screenWidth}
+              height={240}
+              chartConfig={{
+                ...chartConfig,
+                color:(o=1)=>`rgba(255,78,26,${o})`, // Vermelho/Laranja mais forte
+              }}
+              verticalLabelRotation={30}
+              style={{
+                borderRadius:16,
+                marginTop:15,
+                alignSelf:"center"
+              }}
+            />
+          )}
+        </View>
+        <View style={{ height: 50 }} />
 
-        {caloriasDia.length === 0 ? (
-          <Text style={[styles.label, { marginTop: 12 }]}>
-            Nenhum alimento registrado hoje.
-          </Text>
-        ) : (
-          <BarChart
-            data={{
-              labels: caloriasDia.map((_, i) => `${i + 1}`),
-              datasets: [{ data: caloriasDia }],
-            }}
-            width={screenWidth}
-            height={240}
-            chartConfig={{
-              backgroundGradientFrom:"#181924",
-              backgroundGradientTo:"#181924",
-              color:(o=1)=>`rgba(255,78,26,${o})`,
-              labelColor:()=>"#fff",
-              barPercentage:0.5,        // barras mais proporcionais
-            }}
-            style={{
-              borderRadius:16,
-              marginTop:15,
-              alignSelf:"center"
-            }}
-          />
-        )}
-      </View>
-
-    </ScrollView>
-  </LinearGradient>
-);
-
+      </ScrollView>
+    </LinearGradient>
+  );
 }

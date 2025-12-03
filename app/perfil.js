@@ -1,7 +1,8 @@
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,9 +15,13 @@ import {
 } from "react-native";
 import { auth, db } from "./firebase";
 import { getSharedStyles } from "./styles";
+import { ThemeContext } from "./ThemeContext";
 
 export default function Perfil() {
-  const styles = getSharedStyles();
+  const { theme } = useContext(ThemeContext);
+  const styles = getSharedStyles(theme);
+  const dark = theme === "dark";
+
   const router = useRouter();
   const user = auth.currentUser;
 
@@ -30,11 +35,9 @@ export default function Perfil() {
   const [peso, setPeso] = useState("");
   const [objetivo, setObjetivo] = useState("");
 
-  // =====================================================================
-  // 🔥 Carregar dados do Firestore
-  // =====================================================================
+  // Carregar dados =====================================================
   const carregarPerfil = async () => {
-    if (!user) return;
+    if (!user) return setLoading(false);
 
     try {
       const ref = doc(db, "users", user.uid, "perfil", "informacoes");
@@ -48,8 +51,8 @@ export default function Perfil() {
         setPeso(data.peso || "");
         setObjetivo(data.objetivo || "");
       }
-    } catch (error) {
-      Alert.alert("Erro", "Não foi possível carregar o perfil.");
+    } catch (err) {
+      Alert.alert("Erro", "Falha ao carregar perfil.");
     }
 
     setLoading(false);
@@ -57,249 +60,202 @@ export default function Perfil() {
 
   useEffect(() => {
     carregarPerfil();
-  }, []);
+  }, [user]);
 
-  // =====================================================================
-  // 🔥 SALVAR PERFIL
-  // =====================================================================
+  // Salvar alterações ===================================================
   const salvarPerfil = async () => {
-    if (!nome || !idade || !altura || !peso || !objetivo) {
-      return Alert.alert("Atenção", "Preencha todos os campos!");
-    }
+    if (!user) return;
+    setSaving(true);
 
     try {
-      setSaving(true);
+      await setDoc(
+        doc(db, "users", user.uid, "perfil", "informacoes"),
+        {
+          nome,
+          idade,
+          altura,
+          peso,
+          objetivo,
+          atualizadoEm: new Date(),
+        },
+        { merge: true }
+      );
 
-      const ref = doc(db, "users", user.uid, "perfil", "informacoes");
-
-      await setDoc(ref, {
-        nome,
-        idade,
-        altura,
-        peso,
-        objetivo,
-        atualizadoEm: new Date(),
-      });
-
-      await carregarPerfil();
+      Alert.alert("Sucesso", "Perfil atualizado!");
       setEditMode(false);
-
-      // 🔥 Mensagem de sucesso EXIBIDA APÓS SALVAR
-      Alert.alert("Sucesso!", "As informações do perfil foram atualizadas corretamente. 🎉");
-      
-    } catch (error) {
-      Alert.alert("Erro", "Falha ao salvar o perfil.");
+    } catch (err) {
+      Alert.alert("Erro", "Falha ao salvar.");
     }
 
     setSaving(false);
   };
 
-  // =====================================================================
-  // ❌ EXCLUIR PERFIL
-  // =====================================================================
-  const excluirPerfil = () => {
-    Alert.alert(
-      "Remover Perfil",
-      "Tem certeza que deseja remover todas as informações do perfil?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Sim",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteDoc(doc(db, "users", user.uid, "perfil", "informacoes"));
-
-              setNome("");
-              setIdade("");
-              setAltura("");
-              setPeso("");
-              setObjetivo("");
-
-              Alert.alert("Perfil apagado", "As informações foram excluídas.");
-            } catch (error) {
-              Alert.alert("Erro", "Não foi possível excluir.");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  // =====================================================================
-  // 🔄 LOADING
-  // =====================================================================
+  // Loading =============================================================
   if (loading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#050509",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
+      <LinearGradient
+        colors={dark ? ["#050509", "#121219", "#181924"] : ["#FFF", "#FFF", "#FFF"]}
+        style={[styles.root, { justifyContent: "center", alignItems: "center" }]}
       >
         <ActivityIndicator size="large" color="#FF7A2F" />
-        <Text style={{ color: "#FFF", marginTop: 12 }}>Carregando perfil...</Text>
-      </View>
-    );
-  }
-
-  // =====================================================================
-  // 🔥 MODO DE VISUALIZAÇÃO
-  // =====================================================================
-  if (!editMode) {
-    return (
-      <LinearGradient colors={["#050509", "#121219", "#181924"]} style={styles.root}>
-        <StatusBar barStyle="light-content" />
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Meu Perfil</Text>
-
-            <Text style={styles.label}>Nome:</Text>
-            <Text style={{ color: "#FFF", fontSize: 16 }}>{nome || "-"}</Text>
-
-            <Text style={styles.label}>Idade:</Text>
-            <Text style={{ color: "#FFF", fontSize: 16 }}>{idade || "-"}</Text>
-
-            <Text style={styles.label}>Altura:</Text>
-            <Text style={{ color: "#FFF", fontSize: 16 }}>{altura || "-"} cm</Text>
-
-            <Text style={styles.label}>Peso:</Text>
-            <Text style={{ color: "#FFF", fontSize: 16 }}>{peso || "-"} kg</Text>
-
-            <Text style={styles.label}>Objetivo:</Text>
-            <Text style={{ color: "#FFF", fontSize: 16 }}>{objetivo || "-"}</Text>
-
-            {/* Botão Editar */}
-            <Pressable
-              style={[styles.primaryBtn, { marginTop: 20 }]}
-              onPress={() => setEditMode(true)}
-            >
-              <LinearGradient
-                colors={["#FF7A2F", "#FF4E1A"]}
-                style={styles.primaryBtnGradient}
-              >
-                <Text style={styles.primaryBtnLabel}>Editar Perfil</Text>
-              </LinearGradient>
-            </Pressable>
-
-            {/* Excluir Perfil */}
-            <Pressable
-              style={[styles.primaryBtn, { marginTop: 12 }]}
-              onPress={excluirPerfil}
-            >
-              <LinearGradient
-                colors={["#cc0000", "#990000"]}
-                style={styles.primaryBtnGradient}
-              >
-                <Text style={styles.primaryBtnLabel}>Excluir Perfil</Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
-        </ScrollView>
       </LinearGradient>
     );
   }
 
-  // =====================================================================
-  // ✍️ MODO DE EDIÇÃO
-  // =====================================================================
+  const gradientColors = dark
+    ? ["#050509", "#121219", "#181924"]
+    : ["#FFFFFF", "#FFFFFF", "#FFFFFF"];
+
   return (
-    <LinearGradient colors={["#050509", "#121219", "#181924"]} style={styles.root}>
-      <StatusBar barStyle="light-content" />
+    <LinearGradient colors={gradientColors} style={styles.root}>
+      <StatusBar barStyle={dark ? "light-content" : "dark-content"} />
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Editar Perfil</Text>
-
-          {/* Campos */}
-          <Text style={styles.label}>Nome</Text>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Digite seu nome"
-              placeholderTextColor="#72727D"
-              value={nome}
-              onChangeText={setNome}
-            />
-          </View>
-
-          <Text style={styles.label}>Idade</Text>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              placeholder="28"
-              placeholderTextColor="#72727D"
-              value={idade}
-              onChangeText={setIdade}
-            />
-          </View>
-
-          <Text style={styles.label}>Altura (cm)</Text>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              placeholder="170"
-              placeholderTextColor="#72727D"
-              value={altura}
-              onChangeText={setAltura}
-            />
-          </View>
-
-          <Text style={styles.label}>Peso (kg)</Text>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              placeholder="65"
-              placeholderTextColor="#72727D"
-              value={peso}
-              onChangeText={setPeso}
-            />
-          </View>
-
-          <Text style={styles.label}>Objetivo</Text>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Ganhar massa, perder peso..."
-              placeholderTextColor="#72727D"
-              value={objetivo}
-              onChangeText={setObjetivo}
-            />
-          </View>
-
-          {/* Botão Salvar */}
-          <Pressable
-            style={[styles.primaryBtn, { marginTop: 20 }]}
-            onPress={salvarPerfil}
-          >
-            <LinearGradient
-              colors={["#FF7A2F", "#FF4E1A"]}
-              style={styles.primaryBtnGradient}
-            >
-              <Text style={styles.primaryBtnLabel}>
-                {saving ? "Salvando..." : "Salvar Alterações"}
-              </Text>
-            </LinearGradient>
-          </Pressable>
-
-          {/* Cancelar */}
-          <Pressable
-            style={[styles.primaryBtn, { marginTop: 12 }]}
-            onPress={() => setEditMode(false)}
-          >
-            <LinearGradient
-              colors={["#555", "#333"]}
-              style={styles.primaryBtnGradient}
-            >
-              <Text style={styles.primaryBtnLabel}>Cancelar</Text>
-            </LinearGradient>
-          </Pressable>
+        
+        {/* HEADER COM O NOVO ÍCONE (padronizado) */}
+        <View style={{ alignItems: "center", marginBottom: 28 }}>
+          <Ionicons
+            name="person-circle-outline"
+            size={60}
+            color="#FF7A2F"
+            style={{ marginBottom: 10 }}
+          />
+          
+          <Text style={[styles.welcome, { fontSize: 26 }]}>Meu Perfil</Text>
+          <Text style={[styles.subtitle, { marginTop: 6 }]}>{user?.email}</Text>
         </View>
+
+        {/* =========================== MODO VISUALIZAÇÃO =========================== */}
+        {!editMode && (
+          <View style={[styles.card, { padding: 22 }]}>
+            <Text style={[styles.cardTitle, { textAlign: "center" }]}>
+              Informações Pessoais
+            </Text>
+
+            <InfoRow styles={styles} label="Nome" value={nome} />
+            <InfoRow styles={styles} label="Idade" value={idade} />
+            <InfoRow styles={styles} label="Altura" value={`${altura} cm`} />
+            <InfoRow styles={styles} label="Peso" value={`${peso} kg`} />
+            <InfoRow styles={styles} label="Objetivo" value={objetivo} />
+
+            {/* BOTÃO EDITAR – estilo igual ao resto do app */}
+            <Pressable style={{ marginTop: 20 }} onPress={() => setEditMode(true)}>
+              <LinearGradient
+                colors={["#FF7A2F", "#FF4E1A"]}
+                style={{
+                  paddingVertical: 12,
+                  borderRadius: 16,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <Ionicons name="create-outline" size={20} color="#FFF" />
+                <Text style={{ color: "#FFF", fontWeight: "bold" }}>
+                  Editar Perfil
+                </Text>
+              </LinearGradient>
+            </Pressable>
+
+            {/* ❌ Botão excluir foi completamente removido ❌ */}
+          </View>
+        )}
+
+        {/* ============================ MODO EDIÇÃO ============================= */}
+        {editMode && (
+          <View style={[styles.card, { padding: 22 }]}>
+            <Text style={[styles.cardTitle, { textAlign: "center" }]}>
+              Editar Informações
+            </Text>
+
+            <Input label="Nome" value={nome} setValue={setNome} dark={dark} styles={styles} />
+            <Input label="Idade" value={idade} setValue={setIdade} dark={dark} styles={styles} keyboard="numeric" />
+            <Input label="Altura (cm)" value={altura} setValue={setAltura} dark={dark} styles={styles} keyboard="numeric" />
+            <Input label="Peso (kg)" value={peso} setValue={setPeso} dark={dark} styles={styles} keyboard="numeric" />
+            <Input label="Objetivo" value={objetivo} setValue={setObjetivo} dark={dark} styles={styles} />
+
+            <Pressable style={{ marginTop: 20 }} onPress={salvarPerfil} disabled={saving}>
+              <LinearGradient
+                colors={["#FF7A2F", "#FF4E1A"]}
+                style={{
+                  paddingVertical: 12,
+                  borderRadius: 16,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <Ionicons name="save-outline" size={20} color="#FFF" />
+                <Text style={{ color: "#FFF", fontWeight: "bold" }}>
+                  {saving ? "Salvando..." : "Salvar Alterações"}
+                </Text>
+              </LinearGradient>
+            </Pressable>
+
+            <Pressable style={{ marginTop: 12 }} onPress={() => setEditMode(false)}>
+              <LinearGradient
+                colors={["#555", "#333"]}
+                style={{
+                  paddingVertical: 12,
+                  borderRadius: 16,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <Ionicons name="close-circle-outline" size={20} color="#FFF" />
+                <Text style={{ color: "#FFF", fontWeight: "bold" }}>Cancelar</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+        )}
+
+        <View style={{ height: 80 }} />
       </ScrollView>
     </LinearGradient>
   );
 }
+
+
+/* -------------------------------------------
+   COMPONENTES AUXILIARES
+---------------------------------------------*/
+
+const InfoRow = ({ styles, label, value }) => (
+  <View
+    style={{
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: "rgba(255,255,255,0.08)",
+    }}
+  >
+    <Text style={[styles.label]}>{label}</Text>
+    <Text style={[styles.welcome, { fontSize: 16 }]}>{value || "N/A"}</Text>
+  </View>
+);
+
+const Input = ({ label, value, setValue, dark, keyboard = "default", styles }) => (
+  <>
+    <Text style={[styles.label, { marginTop: 18 }]}>{label}</Text>
+    <View
+      style={[
+        styles.inputWrapper,
+        { backgroundColor: dark ? "rgba(255,255,255,0.05)" : "#F3F3F3" },
+      ]}
+    >
+      <TextInput
+        style={styles.input}
+        placeholder={label}
+        placeholderTextColor={dark ? "#777" : "#999"}
+        value={value}
+        onChangeText={setValue}
+        keyboardType={keyboard}
+      />
+    </View>
+  </>
+);

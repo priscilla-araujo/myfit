@@ -6,6 +6,7 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { useContext, useEffect, useState } from "react";
 import { Pressable, ScrollView, StatusBar, Text, View } from "react-native";
 import { auth, db } from "./firebase";
+import { getSharedStyles } from "./styles"; // 💥 Importar estilos compartilhados!
 import { ThemeContext } from "./ThemeContext";
 
 export default function Home() {
@@ -13,6 +14,9 @@ export default function Home() {
   const router = useRouter();
   const { theme, toggleTheme } = useContext(ThemeContext);
   const dark = theme === "dark";
+
+  // 💥 CHAVE: Obter estilos dinâmicos
+  const styles = getSharedStyles(theme); 
 
   const user = auth.currentUser;
   if (!user) return null;
@@ -25,48 +29,54 @@ export default function Home() {
 
   // 🔥 TREINOS (realtime)
   useEffect(() => {
+    // 💥 CORREÇÃO: Adicionar uid como dependência
     return onSnapshot(collection(db,"users",uid,"treinos"),snap=>{
       setTotalTreinos(snap.size);
     });
-  },[]);
+  },[uid]);
 
   // 🔥 CALORIAS (realtime)
   useEffect(() => {
+    // 💥 CORREÇÃO: Adicionar uid como dependência
     return onSnapshot(collection(db,"users",uid,"alimentos"),snap=>{
       let total=0;
       snap.forEach(d=>total+=d.data().calorias||0)
       setCaloriasConsumidas(total);
     });
-  },[]);
+  },[uid]);
 
   const logout = async ()=>{
     await signOut(auth);
     router.replace("/");
   };
 
+  // Cores do Gradiente de Fundo
+  const gradientColors = dark 
+    ? ["#050509","#121219","#181924"] 
+    : ["#FFFFFF","#FFFFFF","#FFFFFF"];
+
+
   return (
     <LinearGradient
       key={theme}
-      colors={ dark ? ["#050509","#121219","#181924"] : ["#FFFFFF","#FFFFFF","#FFFFFF"] }
-      style={{flex:1,paddingTop:60,paddingHorizontal:22}}
+      colors={gradientColors}
+      style={styles.root} 
     >
 
+      {/* Ajuste Status Bar conforme o tema */}
       <StatusBar barStyle={dark ? "light-content" : "dark-content"} />
 
-      <ScrollView contentContainerStyle={{paddingBottom:100}}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, {paddingTop: 30}]}>
 
         {/* HEADER ======================================================== */}
-        <View style={{flexDirection:"row",justifyContent:"space-between",marginBottom:35}}>
+        <View style={{flexDirection:"row",justifyContent:"space-between",marginBottom:35, alignItems: 'center'}}>
           <View>
-            <Text style={{
-              fontSize:26,
-              fontWeight:"bold",
-              color:dark ? "#FFF" : "#000"
-            }}>
+            {/* USAR styles.welcome */}
+            <Text style={[styles.welcome, {fontSize:26}]}>
               Bem-vindo
             </Text>
 
-            <Text style={{color:"#FF7A2F",fontWeight:"600"}}>{email}</Text>
+            <Text style={{color:"#FF7A2F",fontWeight:"600", marginTop: 4}}>{email}</Text>
           </View>
 
           <Pressable onPress={toggleTheme} style={{padding:6}}>
@@ -76,52 +86,51 @@ export default function Home() {
 
 
 
-        {/* RESUMO GERAL (AGORA LARANJA + SEM ÍCONE) ======================= */}
-        <View style={{
-          backgroundColor: dark ? "rgba(255,255,255,0.08)" : "#F5F5F5",
-          borderRadius:18,
+        {/* RESUMO GERAL (CARD COESO) ======================================= */}
+        {/* USAR styles.card para coesão visual (borderRadius: 28) */}
+        <View style={[styles.card, {
           padding:22,
           marginBottom:30,
           borderWidth:1.2,
           borderColor:dark?"rgba(255,255,255,0.10)":"#E2E2E2",
-          elevation:4
-        }}>
+          elevation:4, 
+        }]}>
 
-          <Text
-  style={{
-    fontSize:20,
-    fontWeight:"800",
-    color:"#FF7A2F",
-    textAlign:"center",
-    marginBottom:14
-  }}
->
-  <Ionicons name="checkmark-done-circle-outline" size={22} color="#FF7A2F"/> RESUMO GERAL
-</Text>
+          {/* USAR styles.cardTitle */}
+          <Text style={[styles.cardTitle, {
+              color:"#FF7A2F",
+              textAlign:"center",
+              marginBottom:14,
+              fontSize: 20
+          }]}
+          >
+            <Ionicons name="checkmark-done-circle-outline" size={22} color="#FF7A2F"/> RESUMO GERAL
+          </Text>
 
-
-          <Item label="Treinos" value={totalTreinos} theme={theme}/>
-          <Item label="Calorias gastas" value={`${totalTreinos*300} kcal`} theme={theme}/>
-          <Item label="Calorias consumidas" value={`${caloriasConsumidas} kcal`} theme={theme}/>
+          {/* 💥 PROPAGAR STYLES DINÂMICOS */}
+          <Item label="Treinos" value={totalTreinos} theme={theme} styles={styles}/>
+          <Item label="Calorias gastas" value={`${totalTreinos*300} kcal`} theme={theme} styles={styles}/>
+          <Item label="Calorias consumidas" value={`${caloriasConsumidas} kcal`} theme={theme} styles={styles}/>
         </View>
 
 
 
-        {/* MENU EM GRADE ================================================== */}
+        {/* MENU EM GRADE (COESO) ========================================== */}
         <View style={{gap:18}}>
           <Row>
-            <Menu icon="fitness-outline" name="Treinos" onPress={()=>router.push("/treinos")} theme={theme}/>
-            <Menu icon="restaurant-outline" name="Alimentos" onPress={()=>router.push("/alimentos")} theme={theme}/>
+            {/* 💥 PROPAGAR STYLES DINÂMICOS */}
+            <Menu icon="fitness-outline" name="Treinos" onPress={()=>router.push("/treinos")} theme={theme} styles={styles}/>
+            <Menu icon="restaurant-outline" name="Alimentos" onPress={()=>router.push("/alimentos")} theme={theme} styles={styles}/>
           </Row>
 
           <Row>
-            <Menu icon="stats-chart-outline" name="Estatísticas" onPress={()=>router.push("/estatisticas")} theme={theme}/>
-            <Menu icon="settings-outline" name="Definições" onPress={()=>router.push("/definicoes")} theme={theme}/>
+            <Menu icon="stats-chart-outline" name="Estatísticas" onPress={()=>router.push("/estatisticas")} theme={theme} styles={styles}/>
+            <Menu icon="settings-outline" name="Definições" onPress={()=>router.push("/definicoes")} theme={theme} styles={styles}/>
           </Row>
 
           <Row>
-            <Menu icon="person-circle-outline" name="Perfil" onPress={()=>router.push("/perfil")} theme={theme}/>
-            <Menu icon="exit-outline" name="Sair" color="#FF3B30" onPress={logout} theme={theme}/>
+            <Menu icon="person-circle-outline" name="Perfil" onPress={()=>router.push("/perfil")} theme={theme} styles={styles}/>
+            <Menu icon="exit-outline" name="Sair" color="#FF3B30" onPress={logout} theme={theme} styles={styles}/>
           </Row>
         </View>
 
@@ -131,13 +140,16 @@ export default function Home() {
 }
 
 
-/* COMPONENTES ======================================================= */
+/* COMPONENTES AUXILIARES CORRIGIDOS ================================= */
 
 function Row({children}) {
   return <View style={{flexDirection:"row",gap:18}}>{children}</View>;
 }
 
-function Menu({icon,name,onPress,color="#FF7A2F",theme}) {
+// 💥 CORRIGIDO: Recebe 'styles' como prop para acessar estilos globais
+function Menu({icon,name,onPress,color="#FF7A2F",theme,styles}) {
+  const dark = theme === "dark";
+
   return(
     <Pressable 
       onPress={onPress}
@@ -145,9 +157,11 @@ function Menu({icon,name,onPress,color="#FF7A2F",theme}) {
         flex:1,
         paddingVertical:22,
         alignItems:"center",
-        borderRadius:14,
-        backgroundColor: theme==="dark" ? "rgba(255,255,255,0.08)" : "#FFFFFF",
-        elevation:4
+        borderRadius: styles.card.borderRadius, // Coesão
+        backgroundColor: dark ? "rgba(255,255,255,0.08)" : "#FFFFFF",
+        elevation:4,
+        borderWidth: dark ? 1 : 0,
+        borderColor: dark ? "rgba(255,255,255,0.08)" : "#E2E2E2"
       }}
     >
       <Ionicons name={icon} size={30} color={color}/>
@@ -155,20 +169,23 @@ function Menu({icon,name,onPress,color="#FF7A2F",theme}) {
         marginTop:8,
         fontSize:15,
         fontWeight:"600",
-        color: theme==="dark" ? "#fff" : "#000"
+        color: styles.welcome.color // Cor adaptável
       }}>{name}</Text>
     </Pressable>
   );
 }
 
-function Item({label,value,theme}) {
-  return(
-    <Text style={{
-      fontSize:15,
-      marginBottom:6,
-      color: theme==="dark"? "#CCC" : "#444"
-    }}>
-      {label}: <Text style={{color:theme==="dark" ? "#FFF" : "#000",fontWeight:"700"}}>{value}</Text>
-    </Text>
-  );
+// 💥 CORRIGIDO: Recebe 'styles' como prop
+function Item({label,value,theme,styles}) {
+    const dark = theme === "dark";
+    
+    return(
+        <Text style={[styles.subtitle, {
+            fontSize:15,
+            marginBottom:6,
+            color: styles.subtitle.color // Cor adaptável
+        }]}>
+            {label}: <Text style={{color:dark ? "#FFF" : "#000",fontWeight:"700"}}>{value}</Text>
+        </Text>
+    );
 }

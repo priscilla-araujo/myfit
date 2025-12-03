@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -7,7 +8,7 @@ import {
   doc,
   onSnapshot,
 } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,9 +21,12 @@ import {
 } from "react-native";
 import { auth, db } from "./firebase";
 import { getSharedStyles } from "./styles";
+import { ThemeContext } from "./ThemeContext";
 
 export default function Alimentos() {
-  const styles = getSharedStyles();
+  const { theme } = useContext(ThemeContext);
+  const styles = getSharedStyles(theme);
+  const dark = theme === "dark";
 
   const [busca, setBusca] = useState("");
   const [resultado, setResultado] = useState(null);
@@ -44,7 +48,7 @@ export default function Alimentos() {
   const user = auth.currentUser;
 
   // ============================================
-  // 🔵 CARREGA ALIMENTOS EM TEMPO REAL
+  // 🔵 REALTIME LISTAGEM
   // ============================================
   useEffect(() => {
     if (!user) return;
@@ -53,23 +57,20 @@ export default function Alimentos() {
 
     return onSnapshot(ref, (snapshot) => {
       const lista = [];
-      let calorias = 0;
-      let proteinas = 0;
-      let hidratos = 0;
-      let gorduras = 0;
+      const soma = { calorias: 0, proteinas: 0, hidratos: 0, gorduras: 0 };
 
       snapshot.forEach((docu) => {
         const d = { id: docu.id, ...docu.data() };
         lista.push(d);
 
-        calorias += d.calorias;
-        proteinas += d.proteinas;
-        hidratos += d.hidratos;
-        gorduras += d.gorduras;
+        soma.calorias += d.calorias;
+        soma.proteinas += d.proteinas;
+        soma.hidratos += d.hidratos;
+        soma.gorduras += d.gorduras;
       });
 
       setAlimentos(lista);
-      setResumo({ calorias, proteinas, hidratos, gorduras });
+      setResumo(soma);
     });
   }, []);
 
@@ -115,7 +116,7 @@ export default function Alimentos() {
     if (!permission?.granted) {
       const status = await requestPermission();
       if (!status.granted) {
-        Alert.alert("Permissão negada", "Autorize o uso da câmera.");
+        Alert.alert("Permissão negada", "Autorize a câmera.");
         return;
       }
     }
@@ -129,7 +130,7 @@ export default function Alimentos() {
   };
 
   // ============================================
-  // 💾 SALVAR ALIMENTO
+  // 💾 SALVAR
   // ============================================
   const salvarAlimento = async () => {
     if (!resultado || !user) return;
@@ -140,7 +141,7 @@ export default function Alimentos() {
         criadoEm: new Date(),
       });
 
-      Alert.alert("Sucesso!", "Alimento salvo com sucesso.");
+      Alert.alert("Sucesso!", "Alimento salvo.");
       setResultado(null);
       setBusca("");
     } catch (e) {
@@ -149,7 +150,7 @@ export default function Alimentos() {
   };
 
   // ============================================
-  // 🗑 REMOVER
+  // 🗑 EXCLUIR
   // ============================================
   const removerAlimento = async (id) => {
     try {
@@ -161,7 +162,7 @@ export default function Alimentos() {
   };
 
   // ============================================
-  // 📱 UI DO SCANNER
+  // SCANNER UI
   // ============================================
   if (scannerAtivo)
     return (
@@ -176,119 +177,181 @@ export default function Alimentos() {
     );
 
   // ============================================
-  // UI PRINCIPAL
+  // GRADIENT TEMA
   // ============================================
-  return (
-    <LinearGradient
-      colors={["#050509", "#121219", "#181924"]}
-      style={styles.root}
-    >
-      <StatusBar barStyle="light-content" />
+  const gradientColors = dark
+    ? ["#050509", "#121219", "#181924"]
+    : ["#FFFFFF", "#FFFFFF", "#FFFFFF"];
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.welcome}>Base de Dados de Alimentos 🍎</Text>
-        <Text style={styles.subtitle}>
-          Registre, consulte e acompanhe sua alimentação
+  return (
+    <LinearGradient colors={gradientColors} style={styles.root}>
+      <StatusBar barStyle={dark ? "light-content" : "dark-content"} />
+
+      <ScrollView contentContainerStyle={[styles.scrollContent]}>
+        
+        {/* HEADER */}
+        <View style={{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom: 25 }}>
+          
+          <Text style={[styles.welcome, { fontSize: 26 }]}>
+            Alimentos
           </Text>
 
-        {/* BUSCA */}
-        <View style={styles.card}>
-          <Text style={styles.label}>Buscar alimento</Text>
+          <Pressable
+            onPress={ativarScanner}
+            style={{
+              backgroundColor: "#FF7A2F",
+              width: 46,
+              height: 46,
+              borderRadius: 16,
+              alignItems: "center",
+              justifyContent: "center",
+              elevation: 4,
+            }}
+          >
+            <Ionicons name="barcode-outline" size={26} color="#FFF" />
+          </Pressable>
 
-          <View style={styles.inputWrapper}>
+        </View>
+
+        {/* BUSCA CARD */}
+        <View style={[styles.card,{padding:22}]}>
+          
+          <Text style={[styles.cardTitle,{marginBottom:10}]}>
+            <Ionicons name="search-outline" size={20} color="#FF7A2F"/> Buscar alimento
+          </Text>
+
+          <View style={{
+            backgroundColor: dark ? "rgba(255,255,255,0.05)" : "#F3F3F3",
+            borderRadius: 14,
+            paddingHorizontal: 14,
+            marginBottom: 12
+          }}>
             <TextInput
-              style={styles.input}
+              style={{paddingVertical:12, color: styles.welcome.color}}
               placeholder="Digite nome ou código"
-              placeholderTextColor="#72727D"
+              placeholderTextColor={dark ? "#888" : "#777"}
               value={busca}
               onChangeText={setBusca}
             />
           </View>
 
-          <Pressable style={styles.primaryBtn} onPress={buscarPorNome}>
-            <LinearGradient colors={["#FF7A2F", "#FF4E1A"]} style={styles.primaryBtnGradient}>
-              <Text style={styles.primaryBtnLabel}>Buscar</Text>
-            </LinearGradient>
-          </Pressable>
-
-          <Pressable style={[styles.primaryBtn,{marginTop:10}]} onPress={ativarScanner}>
-            <LinearGradient colors={["#FF7A2F", "#FF4E1A"]} style={styles.primaryBtnGradient}>
-              <Text style={styles.primaryBtnLabel}>Ler Código de Barras</Text>
-            </LinearGradient>
-          </Pressable>
+          <PrimaryBtn label="Buscar" icon="search-outline" onPress={buscarPorNome}/>
         </View>
 
         {/* LOADING */}
-        {loading && <ActivityIndicator size="large" color="#FF7A2F" />}
+        {loading && <ActivityIndicator size="large" color="#FF7A2F" style={{marginTop:10}} />}
 
-        {/* RESULTADO DA BUSCA */}
+        {/* RESULTADO */}
         {resultado && (
-          <View style={[styles.card,{marginTop:20}]}>
-            <Text style={styles.cardTitle}>{resultado.nome}</Text>
-            <Text style={styles.label}>Calorias: <Text style={{color:"#FFF"}}>{resultado.calorias}</Text></Text>
-            <Text style={styles.label}>Proteínas: <Text style={{color:"#FFF"}}>{resultado.proteinas}g</Text></Text>
-            <Text style={styles.label}>Hidratos: <Text style={{color:"#FFF"}}>{resultado.hidratos}g</Text></Text>
-            <Text style={styles.label}>Gorduras: <Text style={{color:"#FFF"}}>{resultado.gorduras}g</Text></Text>
+          <View style={[styles.card,{marginTop:20,padding:22}]}>
+            <Text style={[styles.cardTitle]}>{resultado.nome}</Text>
 
-            <Pressable style={styles.primaryBtn} onPress={salvarAlimento}>
-              <LinearGradient colors={["#FF7A2F", "#FF4E1A"]} style={styles.primaryBtnGradient}>
-                <Text style={styles.primaryBtnLabel}>Salvar alimento</Text>
-              </LinearGradient>
-            </Pressable>
+            <Nutriente label="Calorias" valor={`${resultado.calorias}`} dark={dark}/>
+            <Nutriente label="Proteínas" valor={`${resultado.proteinas}g`} dark={dark}/>
+            <Nutriente label="Hidratos" valor={`${resultado.hidratos}g`} dark={dark}/>
+            <Nutriente label="Gorduras" valor={`${resultado.gorduras}g`} dark={dark}/>
+
+            <PrimaryBtn label="Salvar alimento" icon="save-outline" onPress={salvarAlimento}/>
           </View>
         )}
 
-        {/* LISTAGEM AGRUPADA POR DIA */}
+        {/* LISTA POR DIA */}
         {alimentos.length > 0 && (
-          <View style={{marginTop:20}}>
-            <Text style={[styles.cardTitle,{marginBottom:10}]}>Histórico por Dia 🍽</Text>
+          <View style={{marginTop:30}}>
+            
+            <Text style={[styles.cardTitle, {fontSize:20}]}>
+              <Ionicons name="calendar-outline" size={20} color="#FF7A2F"/> Histórico
+            </Text>
 
             {Object.entries(
-              alimentos.reduce((acc,item)=>{
-                const dia = new Date(item.criadoEm?.seconds*1000).toLocaleDateString("pt-BR");
-                if(!acc[dia]) acc[dia]=[];
+              alimentos.reduce((acc, item) => {
+                const dia = new Date(item.criadoEm?.seconds * 1000).toLocaleDateString("pt-BR");
+                if (!acc[dia]) acc[dia] = [];
                 acc[dia].push(item);
                 return acc;
-              },{})
+              }, {})
             )
-            .sort((a,b)=>new Date(b[0])-new Date(a[0]))
-            .map(([dia,lista])=>(
-              <View key={dia} style={{marginBottom:20}}>
-                <Text style={{color:"#FF7A2F",fontSize:18,fontWeight:"bold",marginBottom:10}}>
-                  📅 {dia}
-                </Text>
+              .sort((a, b) => new Date(b[0]) - new Date(a[0]))
+              .map(([dia, lista]) => (
+                <View key={dia} style={{ marginBottom: 20 }}>
+                  
+                  <Text style={{ color:"#FF7A2F", fontSize:18, fontWeight:"bold", marginTop:10 }}>
+                     {dia}
+                  </Text>
 
-                {lista.map(alimento=>(
-                  <View key={alimento.id} style={[styles.card,{marginBottom:10}]}>
-                    <Text style={styles.cardTitle}>{alimento.nome}</Text>
-                    <Text style={styles.label}>Calorias: <Text style={{color:"#FFF"}}>{alimento.calorias}</Text></Text>
-                    <Text style={styles.label}>Proteínas: <Text style={{color:"#FFF"}}>{alimento.proteinas}g</Text></Text>
-                    <Text style={styles.label}>Hidratos: <Text style={{color:"#FFF"}}>{alimento.hidratos}g</Text></Text>
-                    <Text style={styles.label}>Gorduras: <Text style={{color:"#FFF"}}>{alimento.gorduras}g</Text></Text>
+                  {lista.map((alimento) => (
+                    <View key={alimento.id} style={[styles.card,{marginTop:10,padding:20}]}>
+                      
+                      <Text style={styles.cardTitle}>{alimento.nome}</Text>
 
-                    <Pressable style={[styles.primaryBtn,{marginTop:10}]} onPress={()=>removerAlimento(alimento.id)}>
-                      <LinearGradient colors={["#FF3B3B","#C40000"]} style={styles.primaryBtnGradient}>
-                        <Text style={styles.primaryBtnLabel}>Remover</Text>
-                      </LinearGradient>
-                    </Pressable>
-                  </View>
-                ))}
+                      <Nutriente label="Calorias" valor={alimento.calorias} dark={dark}/>
+                      <Nutriente label="Proteínas" valor={`${alimento.proteinas}g`} dark={dark}/>
+                      <Nutriente label="Hidratos" valor={`${alimento.hidratos}g`} dark={dark}/>
+                      <Nutriente label="Gorduras" valor={`${alimento.gorduras}g`} dark={dark}/>
 
-              </View>
-            ))}
+                      <PrimaryBtn
+                        label="Remover"
+                        icon="trash-outline"
+                        colors={["#FF3B3B","#C40000"]}
+                        onPress={() => removerAlimento(alimento.id)}
+                      />
+                    </View>
+                  ))}
+                </View>
+              ))
+            }
           </View>
         )}
 
         {/* RESUMO */}
-        <View style={[styles.card,{marginTop:20}]}>
-          <Text style={styles.cardTitle}>Resumo Diário 📊</Text>
-          <Text style={styles.label}>Calorias totais: <Text style={{color:"#FFF"}}>{resumo.calorias}</Text></Text>
-          <Text style={styles.label}>Proteínas totais: <Text style={{color:"#FFF"}}>{resumo.proteinas}g</Text></Text>
-          <Text style={styles.label}>Hidratos totais: <Text style={{color:"#FFF"}}>{resumo.hidratos}g</Text></Text>
-          <Text style={styles.label}>Gorduras totais: <Text style={{color:"#FFF"}}>{resumo.gorduras}g</Text></Text>
+        <View style={[styles.card,{marginTop:20,padding:22}]}>
+          
+          <Text style={styles.cardTitle}>
+            <Ionicons name="stats-chart-outline" size={20} color="#FF7A2F"/> Resumo Diário
+          </Text>
+
+          <Nutriente label="Calorias totais" valor={resumo.calorias} dark={dark}/>
+          <Nutriente label="Proteínas totais" valor={`${resumo.proteinas}g`} dark={dark}/>
+          <Nutriente label="Hidratos totais" valor={`${resumo.hidratos}g`} dark={dark}/>
+          <Nutriente label="Gorduras totais" valor={`${resumo.gorduras}g`} dark={dark}/>
+        
         </View>
 
       </ScrollView>
     </LinearGradient>
   );
 }
+
+/* ------------------------------------------
+   COMPONENTES COESOS COM O TEMA DO APP
+------------------------------------------- */
+
+const PrimaryBtn = ({ label, icon, onPress, colors=["#FF7A2F","#FF4E1A"] }) => (
+  <Pressable style={{marginTop:10}} onPress={onPress}>
+    <LinearGradient
+      colors={colors}
+      style={{
+        paddingVertical:12,
+        borderRadius:14,
+        alignItems:"center",
+        justifyContent:"center",
+        flexDirection:"row",
+        gap:8,
+        elevation:4
+      }}
+    >
+      <Ionicons name={icon} size={18} color="#FFF"/>
+      <Text style={{color:"#FFF",fontWeight:"bold"}}>{label}</Text>
+    </LinearGradient>
+  </Pressable>
+);
+
+const Nutriente = ({ label, valor, dark }) => (
+  <Text style={{ 
+    color: dark ? "#DDD" : "#333",
+    fontSize: 15,
+    marginBottom: 4
+  }}>
+    {label}: <Text style={{color: dark ? "#FFF" : "#000", fontWeight:"700"}}>{valor}</Text>
+  </Text>
+);
